@@ -11,7 +11,7 @@ library(leaflet)
 library(dplyr)
 
 # Read data
-mvadata <- read.csv("your_file_path")
+mvadata <- read.csv("Your_file_Path")
 print(colnames(mvadata))
 
 # Clean data
@@ -22,9 +22,19 @@ mvadataref <- mvadata %>%
 
 # Define UI
 ui <- fluidPage(
-  sliderInput("hour", "Hour", min = 0, max = 23, value = 0),
-  sliderInput("day", "Day of the Week", min =1, max = 7, value = 1),
-  leafletOutput("map")
+  tags$head(
+    tags$style(HTML("
+      /* Customizing the UI style */
+      .slider-wrapper {margin-bottom: 20px;}
+      .slider-label {color: #333; font-weight: bold; margin-bottom: 10px;}
+      .leaflet-container { height: 500px;}
+    "))
+  ),
+  div(class  = "slider-wrapper",sliderInput("hour", "Hour in military format", min = 0, max = 23, value = c(0,23), step =1)),
+  
+  div(class = "slider-wrapper", sliderInput("day", "Day of the Week", min =1, max = 7, value =c(1,7))),
+      
+ div(id = "map-wrapper",leafletOutput("map"))
 )
 
 # Define server
@@ -34,14 +44,26 @@ server <- function(input, output, session){
       addTiles() %>%
       setView(lng = mean(mvadataref$LONGITUDE, na.rm = TRUE), lat = mean(mvadataref$LATITUDE, na.rm = TRUE), zoom = 10)
   })
+    output$hour_label <- renderUI({
+    div(
+      class = "slider-label",
+      paste("Hour range:", input$hour[1], "-", input$hour[2])
+    )
+  })
   
+  output$day_label <- renderUI({
+    div(
+      class = "slider-label",
+      paste("Day range:", weekdays(input$day[1]), "-", weekdays(input$day[2]))
+    )
+  })
   observe({
     data_for_hour_day <- mvadataref %>% 
-      filter(CRASH_HOUR == input$hour, CRASH_DAY_OF_WEEK == input$day)  
+      filter(CRASH_HOUR >= input$hour[1], CRASH_HOUR <= input$hour[2], CRASH_DAY_OF_WEEK >= input$day[1], CRASH_DAY_OF_WEEK<=input$day[2])  
     
     leafletProxy("map", session) %>%
       clearMarkers() %>%
-      addMarkers(data = data_for_hour_day, lng = ~LONGITUDE, lat = ~LATITUDE, popup = paste("Hour in military format:", data_for_hour_day$CRASH_HOUR, "<br>Day of the week:", data_for_hour_day$CRASH_DAY_OF_WEEK))
+      addMarkers(data = data_for_hour_day, lng = ~LONGITUDE, lat = ~LATITUDE, popup = paste("Hour:", data_for_hour_day$CRASH_HOUR, "<br>Day:", data_for_hour_day$CRASH_DAY_OF_WEEK))
   })
 }
 
